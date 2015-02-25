@@ -18,6 +18,8 @@
 @property(strong) Reachability * localWiFiReach;
 @property(strong) Reachability * internetConnectionReach;
 
+@property (weak, nonatomic) IBOutlet UIButton *observerButton;
+@property (weak, nonatomic) IBOutlet UILabel *observerResultLabel;
 @end
 
 
@@ -159,7 +161,19 @@
     };
 
     [self.internetConnectionReach startNotifier];
-
+  
+  
+    //////////////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////////////////////
+    //
+    // test globally available internet reachability helper
+  
+    [self setInternetObserverResult:[Reachability hasInternetConnection]];
+  
+    // self.observerButton will be deallocated when tapped, which means the block should no longer be invoked.
+    [Reachability addObserver:self.observerButton forInternetConnection:^(BOOL isReachableViaInternet) {
+        [self setInternetObserverResult:isReachableViaInternet];
+    }];
 }
 
 - (void)viewDidUnload
@@ -259,5 +273,14 @@
 
 }
 
+- (IBAction)didTapRemoveInternetObserver:(id)sender
+{
+    [self.observerButton removeFromSuperview];
+}
+
+- (void)setInternetObserverResult:(BOOL)isInternetReachable
+{
+    self.observerResultLabel.text = isInternetReachable ? @"reachable" : @"unreachable";
+}
 
 @end

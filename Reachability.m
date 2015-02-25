@@ -38,11 +38,24 @@
 NSString *const kReachabilityChangedNotification = @"kReachabilityChangedNotification";
 
 
+
+
+@interface ReachabilityAdditionsObserverWrapper : NSObject
+@property (nonatomic, weak) NSObject *observer;
+@property (nonatomic, copy) ReachabilityInternetConnectionHelperBlock notifyBlock;
+@end
+
+@implementation ReachabilityAdditionsObserverWrapper
+@end
+
+
+
 @interface Reachability ()
 
 @property (nonatomic, assign) SCNetworkReachabilityRef  reachabilityRef;
 @property (nonatomic, strong) dispatch_queue_t          reachabilitySerialQueue;
 @property (nonatomic, strong) id                        reachabilityObject;
+@property (nonatomic, strong) NSMutableArray           *internetObservers;
 
 -(void)reachabilityChanged:(SCNetworkReachabilityFlags)flags;
 -(BOOL)isReachableWithFlags:(SCNetworkReachabilityFlags)flags;
@@ -464,6 +477,65 @@ static void TMReachabilityCallback(SCNetworkReachabilityRef target, SCNetworkRea
     NSString *description = [NSString stringWithFormat:@"<%@: %#x (%@)>",
                              NSStringFromClass([self class]), (unsigned int) self, [self currentReachabilityFlags]];
     return description;
+}
+
+
+#pragma mark - configuring to observe internet connection
++ (instancetype)internetHelper
+{
+    static Reachability *shared;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        shared = [self reachabilityForInternetConnection];
+        [shared configureInternetHelper];
+        [shared startNotifier];
+    });
+    return shared;
+}
+
+- (void)configureInternetHelper
+{
+    self.internetObservers = [NSMutableArray new];
+  
+    self.reachableBlock = ^(Reachability *reachability) {
+        [reachability informObserversOfInternetReachability:YES];
+    };
+    
+    self.unreachableBlock = ^(Reachability *reachability) {
+        [reachability informObserversOfInternetReachability:NO];
+    };
+}
+
+#pragma mark - notifying observers
+
+- (void)informObserversOfInternetReachability:(BOOL)isReachable
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        for (ReachabilityAdditionsObserverWrapper *wrapper in self.internetObservers.copy) {
+            if (wrapper.observer) {
+                wrapper.notifyBlock(isReachable);
+            } else {
+                [self.internetObservers removeObject:wrapper];
+            }
+        }
+    });
+}
+
++ (BOOL)hasInternetConnection
+{
+    return [[self internetHelper] isReachable];
+}
+
+#pragma mark - adding observer
+
++ (void)addObserver:(NSObject *)observer forInternetConnection:(ReachabilityInternetConnectionHelperBlock)block
+{
+    ReachabilityAdditionsObserverWrapper *wrapper = [ReachabilityAdditionsObserverWrapper new];
+    wrapper.observer = observer;
+    wrapper.notifyBlock = block;
+    
+    Reachability *helper = [self internetHelper];
+    [helper.internetObservers addObject:wrapper];
 }
 
 @end

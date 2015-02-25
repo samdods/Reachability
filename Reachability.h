@@ -93,3 +93,35 @@ typedef void (^NetworkUnreachable)(Reachability * reachability);
 -(NSString*)currentReachabilityFlags;
 
 @end
+
+
+
+
+/**
+ *  Defines the block that will be executed when the internet connectivity state changes.
+ *
+ *  @param isReachableViaInternet This will be @c YES if internet is reachable, otherwise @c NO.
+ */
+typedef void (^ReachabilityInternetConnectionHelperBlock)(BOOL isReachableViaInternet);
+
+
+@interface Reachability (InternetConnectionAdditions)
+
+/**
+ *  Indicates whether the current app has a connection to the internet.
+ *
+ *  @return @c YES if the app has a connection to the internet, otherwise @c NO.
+ */
++ (BOOL)hasInternetConnection;
+
+/**
+ *  Adds the provided object as an observer for internet connectivity. The provided block will be invoked when connectivity changes.
+ *
+ *  @note  The @c observer is @b not retained by calling this method.
+ *
+ *  @param observer The object that is interested in notifications of connectivity changes. Once this observer is deallocated, the block is no longer invoked on connectivity changes, and the copy of the block is deallocated.
+ *  @param block    The block that is invoked when internet connectivity changes. @b Note: you should not strongly reference the observer inside this block to avoid a strong reference cycle.
+ */
++ (void)addObserver:(NSObject *)observer forInternetConnection:(ReachabilityInternetConnectionHelperBlock)block;
+
+@end
